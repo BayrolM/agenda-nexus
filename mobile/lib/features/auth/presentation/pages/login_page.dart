@@ -74,10 +74,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.business_center,
-                    size: 64,
-                    color: textColor,
+                  Image.asset(
+                    'assets/images/db_nexus_logo.png',
+                    height: 100,
                   ),
                   const SizedBox(height: 16),
 

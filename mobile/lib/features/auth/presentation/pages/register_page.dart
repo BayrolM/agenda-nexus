@@ -95,10 +95,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.person_add_outlined,
-                    size: 64,
-                    color: textColor,
+                  Image.asset(
+                    'assets/images/db_nexus_logo.png',
+                    height: 100,
                   ),
                   const SizedBox(height: 16),
                   Text(
