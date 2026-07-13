@@ -10,8 +10,6 @@ async function checkAndSendReminders() {
   console.log('[ReminderJob] Checking for upcoming billing reminders...');
 
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
   const date7 = new Date(today);
   date7.setDate(date7.getDate() + 7);
   const date7Str = date7.toISOString().split('T')[0];
@@ -21,7 +19,6 @@ async function checkAndSendReminders() {
   const date3Str = date3.toISOString().split('T')[0];
 
   try {
-    // Mark overdue reminders first
     const overdueReminders = await billingService.markOverdue();
     if (overdueReminders && overdueReminders.length > 0) {
       console.log(`[ReminderJob] Marked ${overdueReminders.length} reminders as overdue`);
@@ -47,14 +44,7 @@ async function sendRemindersForDate(targetDate: string, daysBefore: number) {
       companies (
         id,
         name,
-        user_id,
-        currency,
-        users (
-          id,
-          email,
-          full_name,
-          email_verified
-        )
+        currency
       )
     `)
     .eq('reminder_date', targetDate)
@@ -72,25 +62,38 @@ async function sendRemindersForDate(targetDate: string, daysBefore: number) {
 
   console.log(`[ReminderJob] Found ${reminders.length} reminders for ${targetDate} (${daysBefore} days)`);
 
+  // Get ALL verified users
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, email, full_name')
+    .eq('email_verified', true);
+
+  if (usersError || !users || users.length === 0) {
+    console.error('[ReminderJob] No verified users found:', usersError?.message);
+    return;
+  }
+
+  console.log(`[ReminderJob] Sending to ${users.length} verified users`);
+
+  // Send each reminder to ALL verified users
   for (const reminder of reminders) {
-    try {
-      const company = reminder.companies as any;
-      if (!company) continue;
+    const company = reminder.companies as any;
+    if (!company) continue;
 
-      const user = company.users as any;
-      if (!user || !user.email_verified) continue;
-
-      await emailService.sendBillingReminder(
-        user.email,
-        user.full_name,
-        company.name,
-        reminder.amount,
-        company.currency || 'COP',
-        reminder.reminder_date,
-        daysBefore
-      );
-    } catch (error: any) {
-      console.error(`[ReminderJob] Error sending reminder ${reminder.id}:`, error.message);
+    for (const user of users) {
+      try {
+        await emailService.sendBillingReminder(
+          user.email,
+          user.full_name,
+          company.name,
+          reminder.amount,
+          company.currency || 'COP',
+          reminder.reminder_date,
+          daysBefore
+        );
+      } catch (error: any) {
+        console.error(`[ReminderJob] Error sending reminder ${reminder.id} to ${user.email}:`, error.message);
+      }
     }
   }
 }

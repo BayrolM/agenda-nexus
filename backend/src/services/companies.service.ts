@@ -2,23 +2,21 @@ import { supabase } from '../config/supabase.js';
 import type { Company } from '../types/index.js';
 
 export class CompaniesService {
-  async getAll(userId: string) {
+  async getAll() {
     const { data, error } = await supabase
       .from('companies')
       .select('*')
-      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data;
   }
 
-  async getById(id: string, userId: string) {
+  async getById(id: string) {
     const { data, error } = await supabase
       .from('companies')
       .select('*')
       .eq('id', id)
-      .eq('user_id', userId)
       .single();
 
     if (error) throw error;
@@ -47,7 +45,7 @@ export class CompaniesService {
     return data;
   }
 
-  async update(id: string, userId: string, updates: Partial<Company>) {
+  async update(id: string, updates: Partial<Company>) {
     const { data, error } = await supabase
       .from('companies')
       .update({
@@ -62,7 +60,6 @@ export class CompaniesService {
         is_active: updates.is_active,
       })
       .eq('id', id)
-      .eq('user_id', userId)
       .select()
       .single();
 
@@ -70,12 +67,11 @@ export class CompaniesService {
     return data;
   }
 
-  async delete(id: string, userId: string) {
+  async delete(id: string) {
     const { error } = await supabase
       .from('companies')
       .delete()
-      .eq('id', id)
-      .eq('user_id', userId);
+      .eq('id', id);
 
     if (error) throw error;
   }

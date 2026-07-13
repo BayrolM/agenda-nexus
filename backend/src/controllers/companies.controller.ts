@@ -7,9 +7,9 @@ const companiesService = new CompaniesService();
 const billingService = new BillingService();
 
 export class CompaniesController {
-  async getAll(req: AuthRequest, res: Response) {
+  async getAll(_req: AuthRequest, res: Response) {
     try {
-      const companies = await companiesService.getAll(req.userId!);
+      const companies = await companiesService.getAll();
       res.json(companies);
     } catch (error: any) {
       console.error('Get companies error:', error);
@@ -19,7 +19,7 @@ export class CompaniesController {
 
   async getById(req: AuthRequest, res: Response) {
     try {
-      const company = await companiesService.getById(req.params.id as string, req.userId!);
+      const company = await companiesService.getById(req.params.id as string);
       res.json(company);
     } catch (error: any) {
       console.error('Get company error:', error);
@@ -60,12 +60,10 @@ export class CompaniesController {
     try {
       const companyId = req.params.id as string;
 
-      // Get old company to compare billing fields
-      const oldCompany = await companiesService.getById(companyId, req.userId!);
+      const oldCompany = await companiesService.getById(companyId);
 
-      const company = await companiesService.update(companyId, req.userId!, req.body);
+      const company = await companiesService.update(companyId, req.body);
 
-      // If billing day or amount changed, regenerate billing reminders
       if (
         oldCompany.billing_day !== req.body.billingDay ||
         oldCompany.billing_amount !== req.body.billingAmount
@@ -90,7 +88,7 @@ export class CompaniesController {
 
   async delete(req: AuthRequest, res: Response) {
     try {
-      await companiesService.delete(req.params.id as string, req.userId!);
+      await companiesService.delete(req.params.id as string);
       res.status(204).send();
     } catch (error: any) {
       console.error('Delete company error:', error);

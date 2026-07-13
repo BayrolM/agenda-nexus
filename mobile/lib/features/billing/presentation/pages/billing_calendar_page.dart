@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../shared/widgets/app_toast.dart';
 import '../../../companies/domain/entities/company.dart';
@@ -56,6 +57,22 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
       for (final c in companies) {
         map[c.id] = c;
       }
+
+      // Schedule local notifications for upcoming reminders
+      final upcomingReminders = records
+          .where((r) =>
+              r.status != BillingStatus.paid &&
+              r.reminderDate.isAfter(DateTime.now()))
+          .map((r) => {
+                'reminder_date': r.reminderDate.toIso8601String(),
+                'company_name': map[r.companyId]?.name ?? 'Empresa',
+                'amount': r.amount ?? map[r.companyId]?.billingAmount,
+              })
+          .toList();
+
+      await NotificationService.scheduleBillingReminders(
+        reminders: upcomingReminders,
+      );
 
       if (mounted) {
         setState(() {

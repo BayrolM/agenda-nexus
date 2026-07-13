@@ -115,4 +115,68 @@ class NotificationService {
   static Future<void> cancelAllNotifications() async {
     await _plugin.cancelAll();
   }
+
+  static Future<void> scheduleBillingReminders({
+    required List<Map<String, dynamic>> reminders,
+  }) async {
+    await cancelAllNotifications();
+
+    final now = tz.TZDateTime.now(tz.local);
+
+    for (int i = 0; i < reminders.length; i++) {
+      final reminder = reminders[i];
+      final reminderDate = DateTime.parse(reminder['reminder_date'] as String);
+      final companyName = reminder['company_name'] as String? ?? 'Empresa';
+      final amount = reminder['amount'] as double?;
+
+      const notificationDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'billing_reminders',
+          'Recordatorios de Cobro',
+          channelDescription: 'Notificaciones de cobros pendientes',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      );
+
+      // Schedule 3 days before
+      final date3 = reminderDate.subtract(const Duration(days: 3));
+      final notify3 = tz.TZDateTime(tz.local, date3.year, date3.month, date3.day, 9, 0);
+
+      if (notify3.isAfter(now)) {
+        final amountStr = amount != null
+            ? '\$${amount.toStringAsFixed(0)} COP'
+            : '';
+        await _plugin.zonedSchedule(
+          i * 2,
+          'Cobro en 3 dias',
+          '$companyName - $amountStr vence el ${reminderDate.day}/${reminderDate.month}',
+          notify3,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+
+      // Schedule 1 day before
+      final date1 = reminderDate.subtract(const Duration(days: 1));
+      final notify1 = tz.TZDateTime(tz.local, date1.year, date1.month, date1.day, 9, 0);
+
+      if (notify1.isAfter(now)) {
+        final amountStr = amount != null
+            ? '\$${amount.toStringAsFixed(0)} COP'
+            : '';
+        await _plugin.zonedSchedule(
+          i * 2 + 1,
+          'Cobro manana',
+          '$companyName - $amountStr vence manana',
+          notify1,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    }
+  }
 }
