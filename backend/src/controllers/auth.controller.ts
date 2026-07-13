@@ -41,14 +41,14 @@ export class AuthController {
 
   async verifyEmail(req: Request, res: Response) {
     try {
-      const { userId, code } = req.body;
+      const { pendingId, code } = req.body;
 
-      if (!userId || !code) {
-        res.status(400).json({ error: 'userId y code son requeridos' });
+      if (!pendingId || !code) {
+        res.status(400).json({ error: 'pendingId y code son requeridos' });
         return;
       }
 
-      const result = await authService.verifyEmail(userId, code);
+      const result = await authService.verifyEmail(pendingId, code);
       res.json(result);
     } catch (error: any) {
       console.error('Verify email error:', error.message);
@@ -58,14 +58,14 @@ export class AuthController {
 
   async resendCode(req: Request, res: Response) {
     try {
-      const { userId } = req.body;
+      const { pendingId } = req.body;
 
-      if (!userId) {
-        res.status(400).json({ error: 'userId es requerido' });
+      if (!pendingId) {
+        res.status(400).json({ error: 'pendingId es requerido' });
         return;
       }
 
-      const result = await authService.resendVerificationCode(userId);
+      const result = await authService.resendVerificationCode(pendingId);
       res.json(result);
     } catch (error: any) {
       console.error('Resend code error:', error.message);

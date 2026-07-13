@@ -51,3 +51,14 @@ export interface BillingReminder {
   status: 'pending' | 'paid' | 'overdue';
   created_at: string;
 }
+
+export interface PendingRegistration {
+  id: string;
+  email: string;
+  password_hash: string;
+  full_name: string;
+  code: string;
+  expires_at: string;
+  verified: boolean;
+  created_at: string;
+}

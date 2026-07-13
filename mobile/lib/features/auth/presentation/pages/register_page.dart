@@ -46,10 +46,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
       if (mounted) {
         if (result != null && result['requiresVerification'] == true) {
-          final userId = result['user']['id'] as String;
-          final email = result['user']['email'] as String;
+          final pendingId = result['pendingId'] as String;
+          final email = _emailController.text.trim();
           context.push('/verify-email', extra: {
-            'userId': userId,
+            'pendingId': pendingId,
             'email': email,
           });
         } else {

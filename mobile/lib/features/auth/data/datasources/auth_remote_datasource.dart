@@ -76,14 +76,6 @@ class AuthRemoteDataSource {
         throw AuthException(data['error'] ?? 'Error al registrar');
       }
 
-      if (data['requiresVerification'] == true) {
-        return data;
-      }
-
-      if (data['token'] != null && data['user'] != null) {
-        await _saveSession(data['token'], data['user']);
-      }
-
       return data;
     } on AuthException {
       rethrow;
@@ -94,8 +86,8 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<void> verifyEmail({
-    required String userId,
+  Future<Map<String, dynamic>?> verifyEmail({
+    required String pendingId,
     required String code,
   }) async {
     try {
@@ -103,7 +95,7 @@ class AuthRemoteDataSource {
           .post(
             Uri.parse('$_baseUrl/verify-email'),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'userId': userId, 'code': code}),
+            body: jsonEncode({'pendingId': pendingId, 'code': code}),
           )
           .timeout(AppConstants.httpTimeout);
 
@@ -112,6 +104,13 @@ class AuthRemoteDataSource {
       if (response.statusCode != 200) {
         throw AuthException(data['error'] ?? 'Error al verificar');
       }
+
+      // Save session if verification successful and token is returned
+      if (data['token'] != null && data['user'] != null) {
+        await _saveSession(data['token'], data['user']);
+      }
+
+      return data;
     } on AuthException {
       rethrow;
     } on http.ClientException {
@@ -121,13 +120,13 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<void> resendCode({required String userId}) async {
+  Future<void> resendCode({required String pendingId}) async {
     try {
       final response = await _httpClient
           .post(
             Uri.parse('$_baseUrl/resend-code'),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'userId': userId}),
+            body: jsonEncode({'pendingId': pendingId}),
           )
           .timeout(AppConstants.httpTimeout);
 

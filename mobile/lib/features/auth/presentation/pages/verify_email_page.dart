@@ -10,12 +10,12 @@ import '../../../../shared/widgets/app_toast.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 
 class VerifyEmailPage extends ConsumerStatefulWidget {
-  final String userId;
+  final String pendingId;
   final String email;
 
   const VerifyEmailPage({
     super.key,
-    required this.userId,
+    required this.pendingId,
     required this.email,
   });
 
@@ -76,14 +76,20 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
 
     try {
       final dataSource = AuthRemoteDataSource();
-      await dataSource.verifyEmail(
-        userId: widget.userId,
+      final result = await dataSource.verifyEmail(
+        pendingId: widget.pendingId,
         code: code,
       );
 
       if (mounted) {
-        AppToast.success(context, 'Correo verificado exitosamente');
-        context.go('/login');
+        if (result != null && result['token'] != null) {
+          AppToast.success(context, 'Correo verificado exitosamente');
+          // Auto-login: go to home page
+          context.go('/');
+        } else {
+          AppToast.success(context, 'Correo verificado exitosamente');
+          context.go('/login');
+        }
       }
     } on AuthException catch (e) {
       if (mounted) AppToast.error(context, e.message);
@@ -103,7 +109,7 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
 
     try {
       final dataSource = AuthRemoteDataSource();
-      await dataSource.resendCode(userId: widget.userId);
+      await dataSource.resendCode(pendingId: widget.pendingId);
 
       if (mounted) {
         AppToast.success(context, 'Codigo reenviado. Revisa tu correo.');
@@ -229,55 +235,43 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage> {
           width: 48,
           height: 56,
           margin: const EdgeInsets.symmetric(horizontal: 4),
-          child: KeyboardListener(
-            focusNode: FocusNode(),
-            onKeyEvent: (event) {
-              if (event is KeyDownEvent &&
-                  event.logicalKey == LogicalKeyboardKey.backspace &&
-                  _controllers[index].text.isEmpty &&
-                  index > 0) {
-                _controllers[index - 1].clear();
+          child: TextField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            maxLength: 1,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+            decoration: InputDecoration(
+              counterText: '',
+              contentPadding: EdgeInsets.zero,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: focusBorderColor, width: 2),
+              ),
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            onChanged: (value) {
+              if (value.isNotEmpty && index < 5) {
+                _focusNodes[index + 1].requestFocus();
+              }
+              if (value.isEmpty && index > 0) {
                 _focusNodes[index - 1].requestFocus();
               }
+              if (_code.length == 6) {
+                _verify();
+              }
             },
-            child: TextField(
-              controller: _controllers[index],
-              focusNode: _focusNodes[index],
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              maxLength: 1,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-              ),
-              decoration: InputDecoration(
-                counterText: '',
-                contentPadding: EdgeInsets.zero,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: borderColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: focusBorderColor, width: 2),
-                ),
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-              ],
-              onChanged: (value) {
-                if (value.isNotEmpty && index < 5) {
-                  _focusNodes[index + 1].requestFocus();
-                }
-                if (value.isEmpty && index > 0) {
-                  _focusNodes[index - 1].requestFocus();
-                }
-                if (_code.length == 6) {
-                  _verify();
-                }
-              },
-            ),
           ),
         );
       }),

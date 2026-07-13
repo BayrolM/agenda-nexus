@@ -50,75 +50,94 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string, fullName: string) {
-    const { data: existing } = await supabase
+    // Check if email already exists in users table
+    const { data: existingUser } = await supabase
       .from('users')
       .select('id')
       .eq('email', email)
       .single();
 
-    if (existing) {
+    if (existingUser) {
       throw new Error('Este correo ya esta registrado');
     }
 
+    // Hash password and store in pending_registrations (NOT in users yet)
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const { pendingId, code } = await verificationService.generatePendingCode(
+      email,
+      hashedPassword,
+      fullName,
+    );
+
+    // Send verification email
+    await emailService.sendVerificationCode(email, code, fullName);
+
+    return {
+      pendingId,
+      requiresVerification: true,
+    };
+  }
+
+  async verifyEmail(pendingId: string, code: string) {
+    // Verify the code against pending_registrations
+    const pendingData = await verificationService.verifyPendingCode(pendingId, code);
+
+    if (!pendingData) {
+      throw new Error('Codigo invalido o expirado');
+    }
+
+    // Now create the user in users table
     const { data: user, error } = await supabase
       .from('users')
       .insert({
-        email,
-        password: hashedPassword,
-        full_name: fullName,
+        email: pendingData.email,
+        password: pendingData.passwordHash,
+        full_name: pendingData.fullName,
         role: 'user',
-        email_verified: false,
+        email_verified: true,
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    const code = await verificationService.generateCode(user.id);
-    await emailService.sendVerificationCode(email, code, fullName);
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     return {
+      verified: true,
       user: {
         id: user.id,
         email: user.email,
         full_name: user.full_name,
         role: user.role,
-        email_verified: false,
+        email_verified: user.email_verified,
         created_at: user.created_at,
       },
-      requiresVerification: true,
+      token,
     };
   }
 
-  async verifyEmail(userId: string, code: string) {
-    const success = await verificationService.verifyCode(userId, code);
-    if (!success) {
-      throw new Error('Codigo invalido o expirado');
-    }
-    return { verified: true };
-  }
+  async resendVerificationCode(pendingId: string) {
+    const pending = await verificationService.getPendingRegistration(pendingId);
 
-  async resendVerificationCode(userId: string) {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, full_name, email_verified')
-      .eq('id', userId)
-      .single();
-
-    if (error || !user) {
-      throw new Error('Usuario no encontrado');
+    if (!pending) {
+      throw new Error('Registro no encontrado');
     }
 
-    if (user.email_verified) {
-      throw new Error('El correo ya esta verificado');
-    }
+    const code = await verificationService.resendPendingCode(pendingId);
 
-    const code = await verificationService.generateCode(userId);
+    if (!code) {
+      throw new Error('No se pudo reenviar el codigo');
+    }
 
     try {
-      await emailService.sendVerificationCode(user.email, code, user.full_name);
+      await emailService.sendVerificationCode(pending.email, code, pending.full_name);
     } catch (emailError: any) {
       console.error('Warning: Could not resend verification email:', emailError.message);
       throw new Error('Error al enviar el correo. Intenta de nuevo.');

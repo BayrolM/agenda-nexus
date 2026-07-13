@@ -36,9 +36,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'verifyEmail',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          final userId = extra?['userId'] as String? ?? '';
+          final pendingId = extra?['pendingId'] as String? ?? '';
           final email = extra?['email'] as String? ?? '';
-          return VerifyEmailPage(userId: userId, email: email);
+          return VerifyEmailPage(pendingId: pendingId, email: email);
         },
       ),
 
