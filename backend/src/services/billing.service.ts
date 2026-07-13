@@ -64,4 +64,60 @@ export class BillingService {
 
     if (error) throw error;
   }
+
+  async markOverdue() {
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('billing_reminders')
+      .update({ status: 'overdue' })
+      .lt('reminder_date', today)
+      .eq('status', 'pending')
+      .select();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async deleteByCompanyId(companyId: string) {
+    const { error } = await supabase
+      .from('billing_reminders')
+      .delete()
+      .eq('company_id', companyId)
+      .eq('status', 'pending');
+
+    if (error) throw error;
+  }
+
+  async regenerateForCompany(
+    companyId: string,
+    billingDay: number,
+    billingAmount: number | null,
+  ) {
+    await this.deleteByCompanyId(companyId);
+
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      let month = now.getMonth() + i;
+      let year = now.getFullYear();
+      if (month > 11) {
+        month -= 12;
+        year += 1;
+      }
+
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const day = billingDay > lastDay ? lastDay : billingDay;
+      const reminderDate = new Date(year, month, day);
+
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (reminderDate < today) continue;
+
+      await this.create({
+        company_id: companyId,
+        reminder_date: reminderDate.toISOString().split('T')[0],
+        amount: billingAmount ?? undefined,
+        status: 'pending',
+      });
+    }
+  }
 }

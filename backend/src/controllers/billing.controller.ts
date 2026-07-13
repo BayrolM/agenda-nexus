@@ -68,6 +68,16 @@ export class BillingController {
     }
   }
 
+  async markOverdue(_req: AuthRequest, res: Response) {
+    try {
+      const records = await billingService.markOverdue();
+      res.json({ marked: records?.length ?? 0 });
+    } catch (error: any) {
+      console.error('Mark overdue error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   async delete(req: AuthRequest, res: Response) {
     try {
       await billingService.delete(req.params.id as string);

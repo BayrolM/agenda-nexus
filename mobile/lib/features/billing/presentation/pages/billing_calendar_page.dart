@@ -34,6 +34,13 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
   void initState() {
     super.initState();
     _loadData();
+
+    // Reload billing data whenever companies change
+    ref.listen(companiesProvider, (prev, next) {
+      if (mounted && next.hasValue) {
+        _loadData();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -44,6 +51,10 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
 
     try {
       final dataSource = BillingRemoteDataSource();
+
+      // Mark overdue reminders as a safety net
+      await dataSource.markOverdue();
+
       final records = await dataSource.getAll();
 
       final companiesState = ref.read(companiesProvider);
@@ -71,13 +82,6 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
   }
 
   Company? _findCompany(String companyId) => _companiesMap[companyId];
-
-  bool _hasRecordOnDay(DateTime day) {
-    return _records.any((r) =>
-        r.reminderDate.year == day.year &&
-        r.reminderDate.month == day.month &&
-        r.reminderDate.day == day.day);
-  }
 
   List<BillingRecord> _getRecordsForDay(DateTime day) {
     return _records.where((r) =>
@@ -222,20 +226,32 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
           ),
           calendarBuilders: CalendarBuilders(
             markerBuilder: (context, day, events) {
-              if (_hasRecordOnDay(day)) {
-                return Positioned(
-                  bottom: 4,
-                  child: Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: markerColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                );
+              final dayRecords = _getRecordsForDay(day);
+              if (dayRecords.isEmpty) return null;
+
+              final hasOverdue = dayRecords.any((r) => r.status == BillingStatus.overdue);
+              final hasPending = dayRecords.any((r) => r.status == BillingStatus.pending);
+
+              Color dotColor;
+              if (hasOverdue) {
+                dotColor = AppColors.error;
+              } else if (hasPending) {
+                dotColor = AppColors.warning;
+              } else {
+                dotColor = AppColors.success;
               }
-              return null;
+
+              return Positioned(
+                bottom: 4,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
             },
           ),
         ),
@@ -407,11 +423,11 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
                           color: textColor),
                     ),
                   const SizedBox(height: 4),
-                  if (!isPaid)
+                  if (isPaid)
                     SizedBox(
                       height: 28,
                       child: OutlinedButton(
-                        onPressed: () => _markPaid(record),
+                        onPressed: () => _markPending(record),
                         style: OutlinedButton.styleFrom(
                           padding:
                               const EdgeInsets.symmetric(horizontal: 8),
@@ -420,22 +436,51 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
                                   ? AppColors.gray600
                                   : AppColors.gray300),
                         ),
-                        child: Text('Pagado',
+                        child: Text('Revertir',
                             style: TextStyle(
                                 fontSize: 11, color: textColor)),
                       ),
                     )
                   else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.successLight,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text('Pagado',
-                          style: TextStyle(
-                              fontSize: 11, color: AppColors.success)),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isOverdue
+                                ? AppColors.errorLight
+                                : AppColors.warningLight,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                              isOverdue ? 'Vencido' : 'Pendiente',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: isOverdue
+                                      ? AppColors.error
+                                      : AppColors.warning)),
+                        ),
+                        const SizedBox(width: 6),
+                        SizedBox(
+                          height: 28,
+                          child: OutlinedButton(
+                            onPressed: () => _markPaid(record),
+                            style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              side: BorderSide(
+                                  color: isDark
+                                      ? AppColors.gray600
+                                      : AppColors.gray300),
+                            ),
+                            child: Text('Pagado',
+                                style: TextStyle(
+                                    fontSize: 11, color: textColor)),
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),
@@ -461,6 +506,21 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
     ));
     if (mounted) {
       AppToast.success(context, 'Cobro marcado como pagado');
+      _loadData();
+    }
+  }
+
+  Future<void> _markPending(BillingRecord record) async {
+    final dataSource = BillingRemoteDataSource();
+    await dataSource.update(BillingModel(
+      id: record.id,
+      companyId: record.companyId,
+      reminderDate: record.reminderDate,
+      amount: record.amount,
+      status: BillingStatus.pending,
+    ));
+    if (mounted) {
+      AppToast.info(context, 'Cobro revertido a pendiente');
       _loadData();
     }
   }
@@ -591,7 +651,20 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
                   ),
                 ],
                 const SizedBox(height: 32),
-                if (record.status != BillingStatus.paid)
+                if (record.status == BillingStatus.paid)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await _markPending(record);
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.undo),
+                      label: const Text('Revertir a pendiente'),
+                    ),
+                  )
+                else
                   SizedBox(
                     width: double.infinity,
                     height: 48,

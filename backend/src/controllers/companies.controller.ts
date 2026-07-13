@@ -1,8 +1,10 @@
 import { Response } from 'express';
 import { CompaniesService } from '../services/companies.service.js';
+import { BillingService } from '../services/billing.service.js';
 import { AuthRequest } from '../middleware/auth.middleware.js';
 
 const companiesService = new CompaniesService();
+const billingService = new BillingService();
 
 export class CompaniesController {
   async getAll(req: AuthRequest, res: Response) {
@@ -56,7 +58,29 @@ export class CompaniesController {
 
   async update(req: AuthRequest, res: Response) {
     try {
-      const company = await companiesService.update(req.params.id as string, req.userId!, req.body);
+      const companyId = req.params.id as string;
+
+      // Get old company to compare billing fields
+      const oldCompany = await companiesService.getById(companyId, req.userId!);
+
+      const company = await companiesService.update(companyId, req.userId!, req.body);
+
+      // If billing day or amount changed, regenerate billing reminders
+      if (
+        oldCompany.billing_day !== req.body.billingDay ||
+        oldCompany.billing_amount !== req.body.billingAmount
+      ) {
+        if (req.body.billingDay != null) {
+          await billingService.regenerateForCompany(
+            companyId,
+            req.body.billingDay,
+            req.body.billingAmount ?? null,
+          );
+        } else {
+          await billingService.deleteByCompanyId(companyId);
+        }
+      }
+
       res.json(company);
     } catch (error: any) {
       console.error('Update company error:', error);

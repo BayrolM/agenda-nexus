@@ -69,4 +69,25 @@ class BillingRemoteDataSource {
   Future<void> delete(String id) async {
     await _client.from('billing_reminders').delete().eq('id', id);
   }
+
+  Future<void> deleteByCompanyId(String companyId) async {
+    await _client
+        .from('billing_reminders')
+        .delete()
+        .eq('company_id', companyId)
+        .eq('status', 'pending');
+  }
+
+  Future<int> markOverdue() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    final response = await _client
+        .from('billing_reminders')
+        .update({'status': 'overdue'})
+        .lt('reminder_date', today)
+        .eq('status', 'pending')
+        .select();
+
+    return (response as List).length;
+  }
 }

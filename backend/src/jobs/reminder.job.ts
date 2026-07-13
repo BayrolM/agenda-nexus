@@ -1,8 +1,10 @@
 import cron from 'node-cron';
 import { supabase } from '../config/supabase.js';
 import { EmailService } from '../services/email.service.js';
+import { BillingService } from '../services/billing.service.js';
 
 const emailService = new EmailService();
+const billingService = new BillingService();
 
 async function checkAndSendReminders() {
   console.log('[ReminderJob] Checking for upcoming billing reminders...');
@@ -19,6 +21,12 @@ async function checkAndSendReminders() {
   const date3Str = date3.toISOString().split('T')[0];
 
   try {
+    // Mark overdue reminders first
+    const overdueReminders = await billingService.markOverdue();
+    if (overdueReminders && overdueReminders.length > 0) {
+      console.log(`[ReminderJob] Marked ${overdueReminders.length} reminders as overdue`);
+    }
+
     await sendRemindersForDate(date7Str, 7);
     await sendRemindersForDate(date3Str, 3);
 

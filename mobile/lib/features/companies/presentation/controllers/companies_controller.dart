@@ -49,7 +49,23 @@ class CompaniesNotifier extends StateNotifier<AsyncValue<List<Company>>> {
 
   Future<void> update(Company company) async {
     final repository = _ref.read(companyRepositoryProvider);
+
+    // Get old company to compare billing day
+    final oldCompany = await repository.getById(company.id);
+
     await repository.update(company);
+
+    // If billing day or amount changed, regenerate billing reminders
+    if (oldCompany.billingDay != company.billingDay ||
+        oldCompany.billingAmount != company.billingAmount) {
+      final billingDataSource = BillingRemoteDataSource();
+      await billingDataSource.deleteByCompanyId(company.id);
+      if (company.billingDay != null) {
+        await _createBillingReminders(company);
+      }
+    }
+
+    _ref.invalidate(companyDetailProvider);
     await load();
   }
 
