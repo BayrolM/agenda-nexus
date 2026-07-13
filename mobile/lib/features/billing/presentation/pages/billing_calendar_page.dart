@@ -34,13 +34,6 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
   void initState() {
     super.initState();
     _loadData();
-
-    // Reload billing data whenever companies change
-    ref.listen(companiesProvider, (prev, next) {
-      if (mounted && next.hasValue) {
-        _loadData();
-      }
-    });
   }
 
   Future<void> _loadData() async {
@@ -107,6 +100,13 @@ class _BillingCalendarPageState extends ConsumerState<BillingCalendarPage> {
     final isDark = themeMode == ThemeMode.dark ||
         (themeMode == ThemeMode.system &&
             MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+
+    // Reload billing data whenever companies change
+    ref.listen(companiesProvider, (prev, next) {
+      if (next.hasValue) {
+        _loadData();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
