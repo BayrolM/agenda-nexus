@@ -24,7 +24,7 @@ class NotificationService {
 
     // Configurar Android
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+      '@mipmap/launcher_icon',
     );
 
     // Configurar iOS
