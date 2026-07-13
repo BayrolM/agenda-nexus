@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -20,6 +21,7 @@ class NotificationService {
       tz.setLocalLocation(tz.getLocation(tzName));
     } catch (_) {
       // Fallback a UTC si falla la detección
+      tz.setLocalLocation(tz.getLocation('UTC'));
     }
 
     // Configurar Android
@@ -113,6 +115,7 @@ class NotificationService {
   }
 
   static Future<void> cancelAllNotifications() async {
+    if (kIsWeb) return;
     await _plugin.cancelAll();
   }
 

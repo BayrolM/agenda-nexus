@@ -13,16 +13,34 @@ import 'core/theme/theme_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
-  await initializeDateFormatting('es');
+  try {
+    await dotenv.load(fileName: '.env');
+    await initializeDateFormatting('es');
 
-  await Supabase.initialize(
-    url: AppConstants.supabaseUrl,
-    publishableKey: AppConstants.supabaseAnonKey,
-  );
+    await Supabase.initialize(
+      url: AppConstants.supabaseUrl,
+      publishableKey: AppConstants.supabaseAnonKey,
+    );
 
-  await NotificationService.init();
-  await NotificationService.requestPermission();
+    await NotificationService.init();
+    await NotificationService.requestPermission();
+  } catch (e) {
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Error de inicialización:\n$e\n\nPor favor, verifica el archivo .env y la conexión.',
+              style: const TextStyle(color: Colors.red, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    ));
+    return;
+  }
 
   runApp(
     const ProviderScope(
