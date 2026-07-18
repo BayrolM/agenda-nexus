@@ -24,7 +24,12 @@ class AuthNotifier extends StreamNotifier<User?> {
     required String password,
   }) async {
     final repository = ref.read(authRepositoryProvider);
+    // signIn ya guarda el token en memoria Y emite el usuario al Stream interno
+    // del repositorio. Solo necesitamos esperar que termine.
     await repository.signIn(email: email, password: password);
+    // No necesitamos hacer nada más. El Stream del repositorio ya emitió
+    // el usuario, y el StreamNotifier de Riverpod lo captura automáticamente,
+    // lo que activa el refreshListenable del Router.
   }
 
   Future<Map<String, dynamic>?> signUp({
@@ -43,5 +48,7 @@ class AuthNotifier extends StreamNotifier<User?> {
   Future<void> signOut() async {
     final repository = ref.read(authRepositoryProvider);
     await repository.signOut();
+
+    state = const AsyncData(null);
   }
 }

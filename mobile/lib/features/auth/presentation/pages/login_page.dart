@@ -40,7 +40,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           );
       if (mounted) {
         AppToast.success(context, 'Sesion iniciada exitosamente');
-        context.go('/');
       }
     } on AuthException catch (e) {
       if (mounted) {

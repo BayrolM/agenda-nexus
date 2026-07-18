@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';  
 
 import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
@@ -11,7 +12,12 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // GUARDAR LA REFERENCIA DE LA APP
+    WidgetsBinding widgetsBinding=WidgetsFlutterBinding.ensureInitialized();
+
+
+  // CONGELAR LA PANTALLA DE CARGA 
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   try {
     await dotenv.load(fileName: '.env');
@@ -25,6 +31,9 @@ void main() async {
     await NotificationService.init();
     await NotificationService.requestPermission();
   } catch (e) {
+    // Si hay un error, se quitará la pantalla de carga para mostrar el error 
+    FlutterNativeSplash.remove();
+
     runApp(MaterialApp(
       home: Scaffold(
         body: Center(
@@ -41,6 +50,9 @@ void main() async {
     ));
     return;
   }
+
+// QUITAR LA PANTALLA DE CARGA una vez que se haya inicializado todo correctamente 
+FlutterNativeSplash.remove(); 
 
   runApp(
     const ProviderScope(

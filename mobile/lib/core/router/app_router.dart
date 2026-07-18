@@ -11,14 +11,67 @@ import '../../features/companies/presentation/pages/company_form_page.dart';
 import '../../features/services/presentation/pages/services_page.dart';
 import '../../features/services/presentation/pages/service_form_page.dart';
 import '../../features/billing/presentation/pages/billing_calendar_page.dart';
+import '../../features/auth/presentation/controllers/auth_controller.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 final shellNavigatorKey = GlobalKey<NavigatorState>();
 
+// Helper: Convierte el authStateProvider de Riverpod en algo que GoRouter
+// pueda "escuchar" directamente. GoRouter solo entiende ChangeNotifier,
+// y Riverpod no es un ChangeNotifier por defecto. Este puente lo soluciona.
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  _RouterNotifier(this._ref) {
+    // Le decimos a Riverpod: "Cada vez que authStateProvider cambie,
+    // llama a notifyListeners() para avisarle a GoRouter que re-evalúe el redirect."
+    _ref.listen(authStateProvider, (_, __) => notifyListeners());
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
+  // Creamos el puente Riverpod <-> GoRouter
+  final notifier = _RouterNotifier(ref);
+
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/login',
+
+    // Le pasamos el notifier como "escucha". Cuando Riverpod cambie,
+    // GoRouter sabrá que debe volver a ejecutar el redirect.
+    refreshListenable: notifier,
+
+    // EL GUARDIA DE SEGURIDAD: Se ejecuta cada vez que refreshListenable avisa.
+    redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
+
+      // Si Riverpod todavía está cargando la sesión, no movemos a nadie
+      if (authState.isLoading) return null;
+
+      final user = authState.value; // Usuario o null
+
+      // Detectamos si el usuario está intentando ir a una pantalla pública
+      final uri = state.uri.toString();
+      final isOnPublicRoute = uri == '/login' ||
+          uri == '/register' ||
+          uri.startsWith('/verify-email');
+
+      // REGLA 1: No hay usuario Y está intentando ir a pantalla privada
+      //          → Mandarlo al Login
+      if (user == null && !isOnPublicRoute) {
+        return '/login';
+      }
+
+      // REGLA 2: Hay usuario autenticado Y está en una pantalla pública (ej. Login)
+      //          → Mandarlo al inicio (Home)
+      if (user != null && isOnPublicRoute) {
+        return '/';
+      }
+
+      // Todo está bien, que siga su camino
+      return null;
+    },
+
     routes: [
       // Auth routes
       GoRoute(

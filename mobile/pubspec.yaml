@@ -1,6 +1,6 @@
 name: mobile
 description: "Agenda Nexus - Gestión de empresas y cobros"
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
@@ -56,6 +56,7 @@ dev_dependencies:
   json_serializable: ^6.8.0
   build_runner: ^2.4.14
   flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.1
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -69,3 +70,22 @@ flutter:
   assets:
     - .env
     - assets/images/
+
+flutter_native_splash:
+  # Color de fondo de pantalla.
+  color: "#ffffff" #Color blanco
+
+  # Ruta de la imagen
+  image: "assets/images/db_nexus_logo.png"
+
+  # Para que el logo no se deforme y quede en el centro
+  color_dark: "#121212" #Color negro para modo oscuro
+  image_dark: "assets/images/db_nexus_logo.png" #Ruta de la imagen en modo oscuro
+
+  android_12:
+    # Android 12+ tiene su propia manera de manejar las splash screens
+    image: "assets/images/db_nexus_logo.png"
+    image_dark: "assets/images/db_nexus_logo.png"
+    color: "#ffffff" #Color blanco
+    color_dark: "#121212" #Color negro para modo oscuro
+    
